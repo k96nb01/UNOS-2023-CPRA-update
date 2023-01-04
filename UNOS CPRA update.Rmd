@@ -1,0 +1,309 @@
+---
+title: "UNOS CPRA Update"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(DBI)
+library(odbc)
+library(openxlsx)
+```
+
+```{r}
+# In order to connect to UNOS' APIs, including the CRPA calculator, you have to sign up to the UNOS API Developer Portal (https://developer.unos.org/). Then you have to request access to specific APIs. For the upcoming CPRA calculator, you need access to "Histo Lab Management (Beta)." Once you are approved by UNOS, you will get  an "API key" and a "secret," which are the passwords you will need in order to access the APIs. Once you get the key and the secret, copy them to the lines below, replacing the XXs (make sure the characters are still in quotes).
+
+beta_key <- "XX"
+beta_secret <- "XX"
+```
+
+```{r}
+# Once you get your API keys, you then have to pass them back to a UNOS authentication server, where they will authenticate you for an hour, and give you an "access token." This access token is what is required to actually connect to the CPRA calculators or other APIs that you actually want to use. Run the code in this chunk and make sure you get an output that starts with "Bearer" and ends in some random characters. If it instead says "Bearer invalid_client," then something is wrong with your API key and/or secret above.
+
+# This encodes the API key and the Secret for the UNOS authentication service.
+beta_authorization <-base64_enc(charToRaw(str_glue("{beta_key}:{beta_secret}")))
+# This requests an access token from the UNOS client credentials API.
+beta_authentication <- content(POST("https://api.unos.org/oauth/accesstoken?grant_type=client_credentials", add_headers("Authorization" = beta_authorization)))
+# This extracts the access token from the results.
+beta_access <- first(beta_authentication)
+# This encodes the access token for use in the APIs.
+(beta_token <- str_glue("Bearer {beta_access}"))
+```
+
+```{r}
+# Get the UNOS UA codes for the beta CPRA calculator. The UAs that are listed in HistoTrac have to be translated to codes that UNOS recognizes. This downloads translation tables from UNOS. 
+
+# Get a new beta access token
+beta_authorization <-base64_enc(charToRaw(str_glue("{beta_key}:{beta_secret}")))
+beta_authentication <- content(POST("https://api.unos.org/oauth/accesstoken?grant_type=client_credentials", add_headers("Authorization" = beta_authorization)))
+beta_access <- first(beta_authentication)
+beta_token <- str_glue("Bearer {beta_access}")
+
+
+(UNOS_CPRA_codes_A <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensa", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id))) 
+
+(UNOS_CPRA_codes_B <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensb", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_Bw <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensbw", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_C <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensc", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DPA1 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdpa1", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DPB1 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdpb1", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DQA1 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdqa1", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DQB1 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdqb1", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DRB1 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdr", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DR51 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdr51", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DR52 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdr52", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+
+(UNOS_CPRA_codes_DR53 <- map_dfr(nth(content(GET("https://api-beta.unos.org/registration-calculators/v1/cpra/lookups/unacceptableantigensdr53", add_headers("Authorization" = beta_token))), 2), ~as_tibble(.)) %>% filter(Active == TRUE) %>% select(Code, Id) %>% rename(c(allele = Code, UNOS_ID = Id)))
+```
+
+```{r}
+# This code chunk is setting up a bunch of functions that will be used to format the UAs from HistoTrac, send them to the UNOS, and then record the new CPRA result.
+
+# Function for formatting CPRA results for UNOS APIs. This takes the UAs from the HistoTrac "UNOSUnacceptAntigenTxt" field and separates it into several columns, and translates it to the UNOS-recognized UA codes. This requires that the code above, to download the active UNOS UA code translation tables, has been run.
+
+UNOS_CPRA_format <- function(data){
+  intermediate <- data %>% 
+    # Extract UAs into separate columns per locus
+    mutate(UA_A = str_extract(UNOSUnacceptAntigenTxt, "^A:.+")) %>% 
+    mutate(UA_B = str_extract(UNOSUnacceptAntigenTxt, "B:.+")) %>% 
+    mutate(UA_Bw = str_extract(UNOSUnacceptAntigenTxt, "Bw:.+")) %>% 
+    mutate(UA_C = str_extract(UNOSUnacceptAntigenTxt, "Cw:.+")) %>% 
+    mutate(UA_DRB1 = str_extract(UNOSUnacceptAntigenTxt, "DR:.+")) %>% 
+    mutate(UA_DRw = str_extract(UNOSUnacceptAntigenTxt, "DRw:.+")) %>% 
+    mutate(UA_DQA1 = str_extract(UNOSUnacceptAntigenTxt, "DQA:.+")) %>% 
+    mutate(UA_DQB1 = str_extract(UNOSUnacceptAntigenTxt, "DQ:.+")) %>% 
+    mutate(UA_DPA1 = str_extract(UNOSUnacceptAntigenTxt, "DPA:.+")) %>% 
+    mutate(UA_DPB1 = str_extract(UNOSUnacceptAntigenTxt, "DP:.+")) %>% 
+    # Need to separate DR5X into separate columns
+    mutate(UA_DR51 = str_extract_all(UA_DRw, "(51)|(5\\*[:graph:]+)")) %>% 
+    mutate(UA_DR52 = str_extract_all(UA_DRw, "(52)|(3\\*[:graph:]+)")) %>% 
+    mutate(UA_DR53 = str_extract_all(UA_DRw, "(53)|(4\\*[:graph:]+)")) %>% 
+    rowwise() %>% 
+    mutate(across(UA_DR51:UA_DR53, toString)) %>% 
+    mutate(across(UA_DR51:UA_DR53, ~na_if(., "NA"))) %>% 
+    mutate(across(UA_DR51:UA_DR53, ~na_if(., ""))) %>% 
+    mutate(across(UA_DR51:UA_DR53, ~str_replace_all(., ",", ""))) %>% 
+    select(-UA_DRw) %>% 
+    # Remove everything but the numbers from the UAs.
+    mutate(across(UA_A:UA_DR53, ~str_replace(., "[:alpha:]+:", "")))
+  
+  # Join to UNOS codes per locus
+  CPRA_codes_A <- intermediate %>% 
+    select(PatientId, UA_A) %>% 
+    separate_rows(UA_A, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_A, by = c("UA_A" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_A = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_A = na_if(UNOS_ID_A, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_B <- intermediate %>% 
+    select(PatientId, UA_B) %>% 
+    separate_rows(UA_B, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_B, by = c("UA_B" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_B = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_B = na_if(UNOS_ID_B, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_Bw <- intermediate %>% 
+    select(PatientId, UA_Bw) %>% 
+    separate_rows(UA_Bw, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_Bw, by = c("UA_Bw" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_Bw = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_Bw = na_if(UNOS_ID_Bw, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_C <- intermediate %>% 
+    select(PatientId, UA_C) %>% 
+    separate_rows(UA_C, sep = " ") %>%
+    # The UNOS tables require Cw typing in the format "0X."
+    mutate(UA_C = if_else(str_detect(UA_C, "^[:digit:](?![:digit:])"), as.character(str_glue("0{UA_C}")), UA_C)) %>% 
+    left_join(UNOS_CPRA_codes_C, by = c("UA_C" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_C = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_C = na_if(UNOS_ID_C, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DRB1 <- intermediate %>% 
+    select(PatientId, UA_DRB1) %>% 
+    separate_rows(UA_DRB1, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DRB1, by = c("UA_DRB1" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DRB1 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DRB1 = na_if(UNOS_ID_DRB1, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DR51 <- intermediate %>% 
+    select(PatientId, UA_DR51) %>% 
+    separate_rows(UA_DR51, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DR51, by = c("UA_DR51" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DR51 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DR51 = na_if(UNOS_ID_DR51, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DR52 <- intermediate %>% 
+    select(PatientId, UA_DR52) %>% 
+    separate_rows(UA_DR52, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DR52, by = c("UA_DR52" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DR52 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DR52 = na_if(UNOS_ID_DR52, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DR53 <- intermediate %>% 
+    select(PatientId, UA_DR53) %>% 
+    separate_rows(UA_DR53, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DR53, by = c("UA_DR53" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DR53 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DR53 = na_if(UNOS_ID_DR53, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DQA1 <- intermediate %>% 
+    select(PatientId, UA_DQA1) %>% 
+    separate_rows(UA_DQA1, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DQA1, by = c("UA_DQA1" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DQA1 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DQA1 = na_if(UNOS_ID_DQA1, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DQB1 <- intermediate %>% 
+    select(PatientId, UA_DQB1) %>% 
+    separate_rows(UA_DQB1, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DQB1, by = c("UA_DQB1" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DQB1 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DQB1 = na_if(UNOS_ID_DQB1, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DPA1 <- intermediate %>% 
+    select(PatientId, UA_DPA1) %>% 
+    separate_rows(UA_DPA1, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DPA1, by = c("UA_DPA1" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DPA1 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DPA1 = na_if(UNOS_ID_DPA1, "NA")) %>% 
+    ungroup
+  
+  CPRA_codes_DPB1 <- intermediate %>% 
+    select(PatientId, UA_DPB1) %>% 
+    separate_rows(UA_DPB1, sep = " ") %>% 
+    left_join(UNOS_CPRA_codes_DPB1, by = c("UA_DPB1" = "allele")) %>% 
+    group_by(PatientId) %>% 
+    summarize(UNOS_ID_DPB1 = toString(UNOS_ID)) %>% 
+    mutate(UNOS_ID_DPB1 = na_if(UNOS_ID_DPB1, "NA")) %>% 
+    ungroup
+  
+  # Join all columns back to original table
+  data %>% 
+    left_join(CPRA_codes_A, by = "PatientId") %>% 
+    left_join(CPRA_codes_B, by = "PatientId") %>% 
+    left_join(CPRA_codes_Bw, by = "PatientId") %>% 
+    left_join(CPRA_codes_C, by = "PatientId") %>% 
+    left_join(CPRA_codes_DRB1, by = "PatientId") %>% 
+    left_join(CPRA_codes_DR51, by = "PatientId") %>% 
+    left_join(CPRA_codes_DR52, by = "PatientId") %>% 
+    left_join(CPRA_codes_DR53, by = "PatientId") %>% 
+    left_join(CPRA_codes_DQA1, by = "PatientId") %>% 
+    left_join(CPRA_codes_DQB1, by = "PatientId") %>% 
+    left_join(CPRA_codes_DPA1, by = "PatientId") %>% 
+    left_join(CPRA_codes_DPB1, by = "PatientId") %>% 
+    mutate(across(UNOS_ID_A:UNOS_ID_DPB1, ~replace_na(., "")))
+}
+
+# Function to format the beta CPRA API request. This takes the data from the UNOS UA codes and formats it for requesting a CPRA value from the UNOS API. The `if_else` function returns an empty string if there are not any UAs to pass to the UNOS API.
+
+UNOS_CPRA_beta_body <- function(data){
+  if_else(data$UNOS_ID_A == "" & data$UNOS_ID_B == "" & data$UNOS_ID_Bw == "" & data$UNOS_ID_C == "" & data$UNOS_ID_DRB1 == "" & data$UNOS_ID_DR51 == "" & data$UNOS_ID_DR52 == "" & data$UNOS_ID_DR53 == "" & data$UNOS_ID_DQA1 == "" & data$UNOS_ID_DQB1 == "" & data$UNOS_ID_DPA1 == "" & data$UNOS_ID_DPB1 == "", "", as.character(str_glue('{{
+  "UnacceptableAntigensA": [{data$UNOS_ID_A}],
+  "UnacceptableAntigensB": [{data$UNOS_ID_B}],
+  "UnacceptableAntigensBW": [{data$UNOS_ID_Bw}],
+  "UnacceptableAntigensC": [{data$UNOS_ID_C}],
+  "UnacceptableAntigensDPA": [{data$UNOS_ID_DPA1}],
+  "UnacceptableAntigensDPB": [{data$UNOS_ID_DPB1}],
+  "UnacceptableAntigensDQA": [{data$UNOS_ID_DQA1}],
+  "UnacceptableAntigensDQB": [{data$UNOS_ID_DQB1}],
+  "UnacceptableAntigensDR": [{data$UNOS_ID_DRB1}],
+  "UnacceptableAntigensDR51": [{data$UNOS_ID_DR51}],
+  "UnacceptableAntigensDR52": [{data$UNOS_ID_DR52}],
+  "UnacceptableAntigensDR53": [{data$UNOS_ID_DR53}]
+}}')))
+}
+
+# Function to request a beta CPRA from the API. This takes the formatted call and requests a CPRA from the UNOS API. If there are no UAs, "0" is recorded without passing anything to the UNOS API.
+UNOS_CPRA_beta_request <- function(x){
+  if (x == "") {
+    0
+    } else {
+  nth(nth(content(POST("https://api-beta.unos.org/registration-calculators/v1/cpra", add_headers("Authorization" = beta_token), content_type_json(), body = x)), 2), 2) * 100
+    }
+}
+```
+
+```{r}
+# Now everything is set up to get the new CPRA values from UNOS. Next you need to get a table of your patients from HistoTrac.
+
+#Creating a connection to the HistoTrac server
+con <- dbConnect(odbc::odbc(), "HistoTrac", timeout = 10)
+
+#Connecting to the Patient table in HisoTrac, and pulling out the active kidney patients.
+(active_kidney_patients <- tbl(con, "Patient") 
+  %>% select(PatientId, HospitalID, firstnm, lastnm, DOB, PatientTypeCd, UNOSCPRAAmt, categoryCd, StatusCd, UNOSUnacceptAntigenTxt)
+  #%>% count(categoryCd) # Use this function to see all of the values you have in HistoTrac, and then put that into the function below to filter for all of the patients you want.
+  %>% filter(categoryCd == "Kidney" | categoryCd == "Kidney/Heart" | categoryCd == "Kidney/Liver" | categoryCd == "Kidney/Panc" | categoryCd == "Kidney/Pancreas" | categoryCd == "Pancreas")
+  #%>% count(StatusCd) # You can turn on this function to see what values you have in the status field, and decide if you only want to calculate CPRAs for active patients, for example.
+  %>% filter(StatusCd == "Active")
+  #%>% count(PatientTypeCd) # You should only have patients, not donors after doing the above filtering.
+  %>% as_tibble
+)
+```
+
+```{r}
+# Format the active patients for the UNOS API and get beta CPRAs.
+
+# Get a new beta access token
+beta_authorization <-base64_enc(charToRaw(str_glue("{beta_key}:{beta_secret}")))
+beta_authentication <- content(POST("https://api.unos.org/oauth/accesstoken?grant_type=client_credentials", add_headers("Authorization" = beta_authorization)))
+beta_access <- first(beta_authentication)
+beta_token <- str_glue("Bearer {beta_access}")
+
+# Run the functions to get a beta CPRA. This will take a while, but the progress can be tracked in the console below.
+(active_kidney_patients_newCPRA <- active_kidney_patients 
+  %>% UNOS_CPRA_format() 
+  %>% mutate(UNOS_CPRA_beta_body = UNOS_CPRA_beta_body(.))
+  %>% mutate(beta_CPRA = map_dbl(UNOS_CPRA_beta_body, UNOS_CPRA_beta_request, .progress = TRUE), .after = UNOSCPRAAmt)
+  )
+
+```
+
+```{r}
+# Inspect and save the table with the new CPRAs.
+
+(active_kidney_patients_newCPRA_file <- active_kidney_patients_newCPRA
+ %>% select(HospitalID:DOB, UNOSCPRAAmt, beta_CPRA))
+
+(active_kidney_patients_CPRA_increase <- active_kidney_patients_newCPRA_file
+  %>% filter(beta_CPRA > UNOSCPRAAmt))
+
+(active_kidney_patients_CPRA_decrease <- active_kidney_patients_newCPRA_file
+  %>% filter(beta_CPRA < UNOSCPRAAmt))
+
+(active_kidney_patients_CPRA_newly_greater98 <- active_kidney_patients_newCPRA_file
+  %>% filter(UNOSCPRAAmt < 98 & beta_CPRA > 98))
+
+write.xlsx(active_kidney_patients_newCPRA_file, "active_kidney_patients_newCPRA.xlsx")
+```
